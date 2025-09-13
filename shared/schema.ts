@@ -31,7 +31,7 @@ export const projects = pgTable("projects", {
   status: text("status").default("open"), // 'open', 'bidding', 'awarded', 'completed', 'cancelled'
   requirements: jsonb("requirements"), // JSON object for additional requirements
   ownerId: varchar("owner_id").notNull().references(() => users.id),
-  awardedBidId: varchar("awarded_bid_id").references(() => bids.id),
+  awardedBidId: varchar("awarded_bid_id"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

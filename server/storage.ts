@@ -1,5 +1,15 @@
-import { type User, type InsertUser, type Project, type InsertProject, type Bid, type InsertBid, type Message, type InsertMessage, type Document, type InsertDocument } from "@shared/schema";
+import { type User, type InsertUser, type Project, type InsertProject, type Bid, type InsertBid, type Message, type InsertMessage, type Document, type InsertDocument, users, projects, bids, messages, documents } from "@shared/schema";
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
+import { eq, and, desc, or } from "drizzle-orm";
 import { randomUUID } from "crypto";
+
+if (!process.env.DATABASE_URL) {
+  throw new Error("DATABASE_URL is required");
+}
+
+const client = postgres(process.env.DATABASE_URL);
+const db = drizzle(client);
 
 export interface IStorage {
   // User operations
@@ -38,189 +48,143 @@ export interface IStorage {
   deleteDocument(id: string): Promise<void>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User>;
-  private projects: Map<string, Project>;
-  private bids: Map<string, Bid>;
-  private messages: Map<string, Message>;
-  private documents: Map<string, Document>;
-
-  constructor() {
-    this.users = new Map();
-    this.projects = new Map();
-    this.bids = new Map();
-    this.messages = new Map();
-    this.documents = new Map();
-  }
-
+export class DatabaseStorage implements IStorage {
   async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+    const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
+    return result[0];
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(user => user.username === username);
+    const result = await db.select().from(users).where(eq(users.username, username)).limit(1);
+    return result[0];
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(user => user.email === email);
+    const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
+    return result[0];
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const now = new Date();
-    const user: User = { 
-      ...insertUser, 
-      id, 
-      verified: false,
-      createdAt: now,
-      updatedAt: now 
-    };
-    this.users.set(id, user);
-    return user;
+    const result = await db.insert(users).values(insertUser).returning();
+    return result[0];
   }
 
   async updateUser(id: string, updateData: Partial<InsertUser>): Promise<User | undefined> {
-    const user = this.users.get(id);
-    if (!user) return undefined;
-    
-    const updatedUser = { ...user, ...updateData, updatedAt: new Date() };
-    this.users.set(id, updatedUser);
-    return updatedUser;
+    const result = await db.update(users)
+      .set({ ...updateData, updatedAt: new Date() })
+      .where(eq(users.id, id))
+      .returning();
+    return result[0];
   }
 
   async getProject(id: string): Promise<Project | undefined> {
-    return this.projects.get(id);
+    const result = await db.select().from(projects).where(eq(projects.id, id)).limit(1);
+    return result[0];
   }
 
   async getProjectsByOwner(ownerId: string): Promise<Project[]> {
-    return Array.from(this.projects.values()).filter(project => project.ownerId === ownerId);
+    return await db.select().from(projects).where(eq(projects.ownerId, ownerId)).orderBy(desc(projects.createdAt));
   }
 
   async getOpenProjects(): Promise<Project[]> {
-    return Array.from(this.projects.values()).filter(project => project.status === 'open');
+    return await db.select().from(projects).where(eq(projects.status, 'open')).orderBy(desc(projects.createdAt));
   }
 
   async createProject(insertProject: InsertProject): Promise<Project> {
-    const id = randomUUID();
-    const now = new Date();
-    const project: Project = { 
-      ...insertProject, 
-      id, 
-      status: "open",
-      awardedBidId: null,
-      createdAt: now,
-      updatedAt: now 
-    };
-    this.projects.set(id, project);
-    return project;
+    const result = await db.insert(projects).values(insertProject).returning();
+    return result[0];
   }
 
   async updateProject(id: string, updateData: Partial<InsertProject>): Promise<Project | undefined> {
-    const project = this.projects.get(id);
-    if (!project) return undefined;
-    
-    const updatedProject = { ...project, ...updateData, updatedAt: new Date() };
-    this.projects.set(id, updatedProject);
-    return updatedProject;
+    const result = await db.update(projects)
+      .set({ ...updateData, updatedAt: new Date() })
+      .where(eq(projects.id, id))
+      .returning();
+    return result[0];
   }
 
   async getBid(id: string): Promise<Bid | undefined> {
-    return this.bids.get(id);
+    const result = await db.select().from(bids).where(eq(bids.id, id)).limit(1);
+    return result[0];
   }
 
   async getBidsByProject(projectId: string): Promise<Bid[]> {
-    return Array.from(this.bids.values()).filter(bid => bid.projectId === projectId);
+    return await db.select().from(bids).where(eq(bids.projectId, projectId)).orderBy(desc(bids.createdAt));
   }
 
   async getBidsBySupplier(supplierId: string): Promise<Bid[]> {
-    return Array.from(this.bids.values()).filter(bid => bid.supplierId === supplierId);
+    return await db.select().from(bids).where(eq(bids.supplierId, supplierId)).orderBy(desc(bids.createdAt));
   }
 
   async createBid(insertBid: InsertBid): Promise<Bid> {
-    const id = randomUUID();
-    const now = new Date();
-    const bid: Bid = { 
-      ...insertBid, 
-      id, 
-      status: "pending",
-      createdAt: now,
-      updatedAt: now 
-    };
-    this.bids.set(id, bid);
-    return bid;
+    const result = await db.insert(bids).values(insertBid).returning();
+    return result[0];
   }
 
   async updateBid(id: string, updateData: Partial<InsertBid>): Promise<Bid | undefined> {
-    const bid = this.bids.get(id);
-    if (!bid) return undefined;
-    
-    const updatedBid = { ...bid, ...updateData, updatedAt: new Date() };
-    this.bids.set(id, updatedBid);
-    return updatedBid;
+    const result = await db.update(bids)
+      .set({ ...updateData, updatedAt: new Date() })
+      .where(eq(bids.id, id))
+      .returning();
+    return result[0];
   }
 
   async getMessage(id: string): Promise<Message | undefined> {
-    return this.messages.get(id);
+    const result = await db.select().from(messages).where(eq(messages.id, id)).limit(1);
+    return result[0];
   }
 
   async getMessagesBetweenUsers(userId1: string, userId2: string): Promise<Message[]> {
-    return Array.from(this.messages.values()).filter(message => 
-      (message.senderId === userId1 && message.receiverId === userId2) ||
-      (message.senderId === userId2 && message.receiverId === userId1)
-    ).sort((a, b) => new Date(a.createdAt!).getTime() - new Date(b.createdAt!).getTime());
+    return await db.select().from(messages)
+      .where(
+        or(
+          and(
+            eq(messages.senderId, userId1),
+            eq(messages.receiverId, userId2)
+          ),
+          and(
+            eq(messages.senderId, userId2),
+            eq(messages.receiverId, userId1)
+          )
+        )
+      )
+      .orderBy(desc(messages.createdAt));
   }
 
   async getMessagesForProject(projectId: string): Promise<Message[]> {
-    return Array.from(this.messages.values()).filter(message => message.projectId === projectId);
+    return await db.select().from(messages).where(eq(messages.projectId, projectId)).orderBy(desc(messages.createdAt));
   }
 
   async createMessage(insertMessage: InsertMessage): Promise<Message> {
-    const id = randomUUID();
-    const now = new Date();
-    const message: Message = { 
-      ...insertMessage, 
-      id, 
-      read: false,
-      createdAt: now 
-    };
-    this.messages.set(id, message);
-    return message;
+    const result = await db.insert(messages).values(insertMessage).returning();
+    return result[0];
   }
 
   async markMessageAsRead(id: string): Promise<void> {
-    const message = this.messages.get(id);
-    if (message) {
-      this.messages.set(id, { ...message, read: true });
-    }
+    await db.update(messages).set({ read: true }).where(eq(messages.id, id));
   }
 
   async getDocument(id: string): Promise<Document | undefined> {
-    return this.documents.get(id);
+    const result = await db.select().from(documents).where(eq(documents.id, id)).limit(1);
+    return result[0];
   }
 
   async getDocumentsByProject(projectId: string): Promise<Document[]> {
-    return Array.from(this.documents.values()).filter(doc => doc.projectId === projectId);
+    return await db.select().from(documents).where(eq(documents.projectId, projectId)).orderBy(desc(documents.createdAt));
   }
 
   async getDocumentsByOwner(ownerId: string): Promise<Document[]> {
-    return Array.from(this.documents.values()).filter(doc => doc.ownerId === ownerId);
+    return await db.select().from(documents).where(eq(documents.ownerId, ownerId)).orderBy(desc(documents.createdAt));
   }
 
   async createDocument(insertDocument: InsertDocument): Promise<Document> {
-    const id = randomUUID();
-    const now = new Date();
-    const document: Document = { 
-      ...insertDocument, 
-      id, 
-      createdAt: now 
-    };
-    this.documents.set(id, document);
-    return document;
+    const result = await db.insert(documents).values(insertDocument).returning();
+    return result[0];
   }
 
   async deleteDocument(id: string): Promise<void> {
-    this.documents.delete(id);
+    await db.delete(documents).where(eq(documents.id, id));
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
