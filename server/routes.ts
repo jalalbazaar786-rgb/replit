@@ -112,11 +112,14 @@ passport.deserializeUser(async (id: string, done) => {
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Razorpay configuration
-  const razorpay = new Razorpay({
-    key_id: process.env.RAZORPAY_KEY_ID!,
-    key_secret: process.env.RAZORPAY_KEY_SECRET!,
-  });
+  // Razorpay configuration - conditional for development
+  let razorpay: any = null;
+  if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
+    razorpay = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_KEY_SECRET,
+    });
+  }
 
   // Session configuration
   app.use(session({
@@ -452,6 +455,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Create Razorpay order with proper validation
       const orderAmount = Math.round(parseFloat(amount) * 100); // Convert to paise
+      if (!razorpay) {
+        return res.status(503).json({ 
+          message: 'Payment service not configured. Please contact administrator.' 
+        });
+      }
+      
       const razorpayOrder = await razorpay.orders.create({
         amount: orderAmount,
         currency: currency,
