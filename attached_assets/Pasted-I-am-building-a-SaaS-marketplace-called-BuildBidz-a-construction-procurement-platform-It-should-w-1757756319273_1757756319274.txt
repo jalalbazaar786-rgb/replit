@@ -1,0 +1,59 @@
+I am building a SaaS marketplace called BuildBidz — a construction procurement platform. It should work as a web app (Next.js + TailwindCSS) and mobile apps (React Native or Flutter for Android + iOS), all powered by a Python backend (FastAPI or Django) with Supabase for auth, database, and storage.
+
+Core user roles:
+
+Construction Companies → post requirements, receive bids, compare, award jobs, track projects, manage documents.
+
+Suppliers/Contractors → bid competitively on requirements, update status, chat, upload docs.
+
+NGOs → act as clients who also post requirements (e.g., social housing, infrastructure projects) and award contracts to builders/contractors.
+
+Admin → verification, dispute handling, escrow, analytics.
+
+Core features (MVP + advanced):
+
+Authentication & Onboarding → role-based (Company, Supplier, NGO, Admin).
+
+Post Requirements → materials, labor, machinery, NGO projects.
+
+Bidding System → price, delivery time, past credentials.
+
+Side-by-Side Comparison of bids.
+
+Award Job & Real-Time Chat (WebSocket/Supabase Realtime).
+
+Project Dashboard → costs, timelines, worker hours, project status.
+
+Documentation Management → contracts, invoices, certifications (Supabase storage).
+
+Notifications → email + push for web & mobile.
+
+Escrow + Verification System → ensure trust in transactions.
+
+Analytics & Reports → procurement spend, supplier performance, bid trends.
+
+NGO Extensions → allow NGOs to:
+
+Post contracts for builders (schools, housing, sanitation projects).
+
+Track social project progress separately from private projects.
+
+Share impact reports with stakeholders.
+
+Deliverables I expect:
+
+System Architecture (backend, web, mobile, Supabase integration).
+
+Database Schema (Supabase tables with role-based access policies).
+
+Starter Backend Code (Python APIs with auth + bidding endpoints).
+
+Starter Frontend Code (Next.js pages: post requirements, compare bids, dashboards).
+
+Starter Mobile Code (React Native/Flutter screens with Supabase auth + API integration).
+
+Deployment Plan (Docker, Kubernetes, Railway, Vercel, Expo/EAS).
+
+Scalability + Security Recommendations (RBAC, encrypted storage, audit logs).
+
+Focus on making it modular, secure, and production-ready while keeping the user experience fast and smooth across web + mobile."*
