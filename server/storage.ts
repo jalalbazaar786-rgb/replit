@@ -81,7 +81,7 @@ export class MemStorage implements IStorage {
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    for (const user of this.users.values()) {
+    for (const user of Array.from(this.users.values())) {
       if (user.username === username) {
         return user;
       }
@@ -90,7 +90,7 @@ export class MemStorage implements IStorage {
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    for (const user of this.users.values()) {
+    for (const user of Array.from(this.users.values())) {
       if (user.email === email) {
         return user;
       }
@@ -101,7 +101,12 @@ export class MemStorage implements IStorage {
   async createUser(insertUser: InsertUser): Promise<User> {
     const user: User = {
       ...insertUser,
-      id: insertUser.id || randomUUID(),
+      id: randomUUID(),
+      companyName: insertUser.companyName ?? null,
+      contactPerson: insertUser.contactPerson ?? null,
+      phone: insertUser.phone ?? null,
+      address: insertUser.address ?? null,
+      website: insertUser.website ?? null,
       verified: insertUser.verified ?? false,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -135,8 +140,13 @@ export class MemStorage implements IStorage {
   async createProject(insertProject: InsertProject): Promise<Project> {
     const project: Project = {
       ...insertProject,
-      id: insertProject.id || randomUUID(),
-      status: insertProject.status || 'open',
+      id: randomUUID(),
+      status: insertProject.status ?? 'open',
+      budget: insertProject.budget ?? null,
+      startDate: insertProject.startDate ?? null,
+      deadline: insertProject.deadline ?? null,
+      requirements: insertProject.requirements ?? null,
+      awardedBidId: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -158,7 +168,14 @@ export class MemStorage implements IStorage {
   async getBidsByProject(projectId: string): Promise<Bid[]> { return Array.from(this.bids.values()).filter(b => b.projectId === projectId); }
   async getBidsBySupplier(supplierId: string): Promise<Bid[]> { return Array.from(this.bids.values()).filter(b => b.supplierId === supplierId); }
   async createBid(insertBid: InsertBid): Promise<Bid> {
-    const bid: Bid = { ...insertBid, id: insertBid.id || randomUUID(), status: insertBid.status || 'pending', createdAt: new Date(), updatedAt: new Date() };
+    const bid: Bid = {
+      ...insertBid,
+      id: randomUUID(),
+      status: insertBid.status ?? 'pending',
+      attachments: insertBid.attachments ?? null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
     this.bids.set(bid.id, bid);
     return bid;
   }
@@ -178,7 +195,14 @@ export class MemStorage implements IStorage {
   }
   async getMessagesForProject(projectId: string): Promise<Message[]> { return Array.from(this.messages.values()).filter(m => m.projectId === projectId); }
   async createMessage(insertMessage: InsertMessage): Promise<Message> {
-    const message: Message = { ...insertMessage, id: insertMessage.id || randomUUID(), read: false, createdAt: new Date() };
+    const message: Message = {
+      ...insertMessage,
+      id: randomUUID(),
+      projectId: insertMessage.projectId ?? null,
+      attachments: insertMessage.attachments ?? null,
+      read: insertMessage.read ?? false,
+      createdAt: new Date()
+    };
     this.messages.set(message.id, message);
     return message;
   }
@@ -193,20 +217,35 @@ export class MemStorage implements IStorage {
   async getDocumentsByProject(projectId: string): Promise<Document[]> { return Array.from(this.documents.values()).filter(d => d.projectId === projectId); }
   async getDocumentsByOwner(ownerId: string): Promise<Document[]> { return Array.from(this.documents.values()).filter(d => d.ownerId === ownerId); }
   async createDocument(insertDocument: InsertDocument): Promise<Document> {
-    const document: Document = { ...insertDocument, id: insertDocument.id || randomUUID(), createdAt: new Date() };
+    const document: Document = {
+      ...insertDocument,
+      id: randomUUID(),
+      projectId: insertDocument.projectId ?? null,
+      createdAt: new Date()
+    };
     this.documents.set(document.id, document);
     return document;
   }
   async deleteDocument(id: string): Promise<void> { this.documents.delete(id); }
 
   async createPayment(insertPayment: InsertPayment): Promise<Payment> {
-    const payment: Payment = { ...insertPayment, id: insertPayment.id || randomUUID(), createdAt: new Date(), updatedAt: new Date() };
+    const payment: Payment = {
+      ...insertPayment,
+      id: randomUUID(),
+      status: insertPayment.status ?? 'created',
+      razorpayPaymentId: insertPayment.razorpayPaymentId ?? null,
+      currency: insertPayment.currency ?? 'INR',
+      webhookProcessed: false,
+      auditTrail: [],
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
     this.payments.set(payment.id, payment);
     return payment;
   }
   async getPayment(id: string): Promise<Payment | undefined> { return this.payments.get(id); }
   async getPaymentByRazorpayOrderId(orderId: string): Promise<Payment | undefined> {
-    for (const payment of this.payments.values()) {
+    for (const payment of Array.from(this.payments.values())) {
       if (payment.razorpayOrderId === orderId) return payment;
     }
     return undefined;

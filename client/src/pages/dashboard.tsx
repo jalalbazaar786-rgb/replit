@@ -32,11 +32,11 @@ export default function Dashboard() {
     queryKey: ['/api/dashboard/stats'],
   });
 
-  const { data: projects = [] } = useQuery({
+  const { data: projects = [] } = useQuery<any[]>({
     queryKey: ['/api/projects'],
   });
 
-  const { data: documents = [] } = useQuery({
+  const { data: documents = [] } = useQuery<any[]>({
     queryKey: ['/api/documents'],
   });
 
@@ -228,7 +228,7 @@ export default function Dashboard() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {projects.slice(0, 3).map((project: any, index: number) => (
+                  {(projects as any[]).slice(0, 3).map((project: any, index: number) => (
                     <div 
                       key={project.id} 
                       className="group flex items-center justify-between p-4 bg-gradient-to-r from-muted/30 to-transparent rounded-xl border border-border/30 hover:border-primary/20 hover:shadow-sm transition-all duration-300 animate-slide-up"
@@ -264,7 +264,7 @@ export default function Dashboard() {
                     </div>
                   ))}
                   
-                  {projects.length === 0 && (
+                  {(projects as any[]).length === 0 && (
                     <div className="text-center py-12 premium-gradient-subtle rounded-xl">
                       <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
                         <Building2 className="w-8 h-8 text-primary" />
@@ -362,7 +362,7 @@ export default function Dashboard() {
                     </div>
                     
                     <div className="space-y-3">
-                      {documents.slice(0, 3).map((doc: any, index: number) => (
+                      {(documents as any[]).slice(0, 3).map((doc: any, index: number) => (
                         <div 
                           key={doc.id} 
                           className="flex items-center justify-between p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors group cursor-pointer animate-slide-up"
@@ -382,7 +382,7 @@ export default function Dashboard() {
                         </div>
                       ))}
                       
-                      {documents.length === 0 && (
+                      {(documents as any[]).length === 0 && (
                         <div className="text-center py-6 border-2 border-dashed border-border rounded-lg">
                           <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
                           <p className="text-sm text-muted-foreground">No documents uploaded yet</p>
