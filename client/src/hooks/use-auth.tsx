@@ -1,5 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, getQueryFn } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 export interface User {
@@ -13,10 +13,12 @@ export interface User {
 export function useAuth() {
   const { toast } = useToast();
 
-  const { data: user, isLoading, error } = useQuery<User | null>({
+  const { data: user, isLoading, error } = useQuery({
     queryKey: ['/api/auth/me'],
-    retry: false,
-    staleTime: Infinity,
+    queryFn: getQueryFn,
+    retry: false, // Don't retry on 401 errors
+    retryOnMount: false,
+    refetchOnWindowFocus: false,
   });
 
   const loginMutation = useMutation({
@@ -85,7 +87,7 @@ export function useAuth() {
   });
 
   return {
-    user: error ? null : user,
+    user,
     isLoading,
     login: loginMutation.mutate,
     register: registerMutation.mutate,

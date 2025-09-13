@@ -21,7 +21,65 @@ export default function Auth() {
     website: "",
   });
 
-  const { login, register, isLoginPending, isRegisterPending } = useAuth();
+  // Temporarily create local auth functions to avoid the useAuth hook query
+  const [isLoginPending, setIsLoginPending] = useState(false);
+  const [isRegisterPending, setIsRegisterPending] = useState(false);
+
+  const login = async (credentials: { email: string; password: string }) => {
+    try {
+      setIsLoginPending(true);
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(credentials)
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        console.log('Login successful:', data);
+        // Redirect to dashboard on successful login
+        window.location.href = '/dashboard';
+      } else {
+        const error = await res.json();
+        console.error('Login failed:', error);
+        alert('Login failed: ' + (error.message || 'Invalid credentials'));
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      alert('Login failed: Network error');
+    } finally {
+      setIsLoginPending(false);
+    }
+  };
+
+  const register = async (userData: any) => {
+    try {
+      setIsRegisterPending(true);
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(userData)
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        console.log('Registration successful:', data);
+        alert('Registration successful! Please log in.');
+        setIsLogin(true); // Switch to login form
+      } else {
+        const error = await res.json();
+        console.error('Registration failed:', error);
+        alert('Registration failed: ' + (error.message || 'Please try again'));
+      }
+    } catch (error) {
+      console.error('Registration error:', error);
+      alert('Registration failed: Network error');
+    } finally {
+      setIsRegisterPending(false);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

@@ -18,14 +18,21 @@ function Router() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
       </div>
     );
   }
 
   if (!user) {
-    return <Auth />;
+    return (
+      <Switch>
+        <Route path="/auth" component={Auth} />
+        <Route path="/login" component={Auth} />
+        <Route path="/register" component={Auth} />
+        <Route component={Auth} />
+      </Switch>
+    );
   }
 
   return (
