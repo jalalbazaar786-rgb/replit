@@ -61,6 +61,21 @@ declare global {
   }
 }
 
+// Type assertion helper for authenticated requests
+interface AuthenticatedRequest extends Express.Request {
+  user: Express.User;
+}
+
+// Extended types for updates that include additional fields
+type ProjectUpdate = Partial<import('@shared/schema').InsertProject> & {
+  awardedBidId?: string;
+};
+
+type PaymentCreate = import('@shared/schema').InsertPayment & {
+  webhookProcessed?: boolean;
+  auditTrail?: any[];
+};
+
 // Passport configuration
 passport.use(new LocalStrategy(
   { usernameField: 'email' },
@@ -140,6 +155,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.status(401).json({ message: 'Authentication required' });
   };
 
+  // Type assertion helper for authenticated routes
+  const getAuthUser = (req: Express.Request): Express.User => {
+    if (!req.user) {
+      throw new Error('User not authenticated');
+    }
+    return req.user as Express.User;
+  };
+
   // Auth routes
   app.post('/api/auth/register', async (req, res) => {
     try {
@@ -191,9 +214,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Project routes
   app.get('/api/projects', requireAuth, async (req, res) => {
     try {
+      const user = getAuthUser(req);
       let projects;
-      if (req.user.role === 'company' || req.user.role === 'ngo') {
-        projects = await storage.getProjectsByOwner(req.user.id);
+      if (user.role === 'company' || user.role === 'ngo') {
+        projects = await storage.getProjectsByOwner(user.id);
       } else {
         projects = await storage.getOpenProjects();
       }
@@ -217,14 +241,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/projects', requireAuth, async (req, res) => {
     try {
-      if (req.user.role !== 'company' && req.user.role !== 'ngo') {
+      const user = getAuthUser(req);
+      if (user.role !== 'company' && user.role !== 'ngo') {
         return res.status(403).json({ message: 'Only companies and NGOs can create projects' });
       }
 
       const projectData = insertProjectSchema.parse(req.body);
       const project = await storage.createProject({
         ...projectData,
-        ownerId: req.user.id
+        ownerId: user.id
       });
 
       res.status(201).json(project);
@@ -247,12 +272,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Only project owner or bid owners can view bids
       const bids = await storage.getBidsByProject(req.params.projectId);
       
-      if (project.ownerId === req.user.id) {
+      const user = getAuthUser(req);
+      if (project.ownerId === user.id) {
         // Project owner can see all bids
         res.json(bids);
       } else {
         // Suppliers can only see their own bids
-        const userBids = bids.filter(bid => bid.supplierId === req.user.id);
+        const userBids = bids.filter(bid => bid.supplierId === user.id);
         res.json(userBids);
       }
     } catch (error) {
@@ -262,7 +288,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/projects/:projectId/bids', requireAuth, async (req, res) => {
     try {
-      if (req.user.role !== 'supplier') {
+      const user = getAuthUser(req);
+      if (user.role !== 'supplier') {
         return res.status(403).json({ message: 'Only suppliers can submit bids' });
       }
 
@@ -279,7 +306,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const bid = await storage.createBid({
         ...bidData,
         projectId: req.params.projectId,
-        supplierId: req.user.id
+        supplierId: user.id
       });
 
       res.status(201).json(bid);
@@ -298,8 +325,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'Bid not found' });
       }
 
+      const user = getAuthUser(req);
       const project = await storage.getProject(bid.projectId);
-      if (!project || project.ownerId !== req.user.id) {
+      if (!project || project.ownerId !== user.id) {
         return res.status(403).json({ message: 'Unauthorized' });
       }
 
@@ -307,7 +335,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.updateProject(bid.projectId, { 
         status: 'awarded', 
         awardedBidId: req.params.bidId 
-      });
+      } as ProjectUpdate);
 
       res.json({ message: 'Bid awarded successfully' });
     } catch (error) {
@@ -320,16 +348,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { userId, projectId } = req.query;
       
+      const user = getAuthUser(req);
       let messages;
       if (userId) {
-        messages = await storage.getMessagesBetweenUsers(req.user.id, userId as string);
+        messages = await storage.getMessagesBetweenUsers(user.id, userId as string);
       } else if (projectId) {
         messages = await storage.getMessagesForProject(projectId as string);
       } else {
         // Get all messages for the user
         const allMessages = Array.from((storage as any).messages.values());
-        messages = allMessages.filter(msg => 
-          msg.senderId === req.user.id || msg.receiverId === req.user.id
+        messages = allMessages.filter((msg: any) => 
+          msg.senderId === user.id || msg.receiverId === user.id
         );
       }
       
@@ -341,10 +370,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/messages', requireAuth, async (req, res) => {
     try {
+      const user = getAuthUser(req);
       const messageData = insertMessageSchema.parse(req.body);
       const message = await storage.createMessage({
         ...messageData,
-        senderId: req.user.id
+        senderId: user.id
       });
 
       // Broadcast message via WebSocket
@@ -372,10 +402,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { projectId } = req.query;
       
       let documents;
+      const user = getAuthUser(req);
       if (projectId) {
         documents = await storage.getDocumentsByProject(projectId as string);
       } else {
-        documents = await storage.getDocumentsByOwner(req.user.id);
+        documents = await storage.getDocumentsByOwner(user.id);
       }
       
       res.json(documents);
@@ -386,10 +417,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/documents', requireAuth, async (req, res) => {
     try {
+      const user = getAuthUser(req);
       const documentData = insertDocumentSchema.parse(req.body);
       const document = await storage.createDocument({
         ...documentData,
-        ownerId: req.user.id
+        ownerId: user.id
       });
 
       res.status(201).json(document);
@@ -427,7 +459,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Bid does not belong to specified project' });
       }
 
-      if (project.ownerId !== req.user.id) {
+      const user = getAuthUser(req);
+      if (project.ownerId !== user.id) {
         return res.status(403).json({ message: 'Only project owner can create payments' });
       }
 
@@ -468,19 +501,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         notes: {
           bidId,
           projectId,
-          payerId: req.user.id,
+          payerId: user.id,
           payeeId: bid.supplierId,
           type,
-          companyName: req.user.companyName || 'Unknown'
+          companyName: user.companyName || 'Unknown'
         }
       });
 
       // Store payment record with audit trail
-      const payment = await storage.createPayment({
+      const paymentData: PaymentCreate = {
         razorpayOrderId: razorpayOrder.id,
         projectId,
         bidId,
-        payerId: req.user.id,
+        payerId: user.id,
         payeeId: bid.supplierId,
         amount: amount,
         currency: currency,
@@ -490,12 +523,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         auditTrail: [
           {
             action: 'payment_order_created',
-            userId: req.user.id,
+            userId: user.id,
             timestamp: new Date().toISOString(),
             details: { orderId: razorpayOrder.id, amount, currency, type }
           }
         ]
-      });
+      };
+      const payment = await storage.createPayment(paymentData as any);
 
       res.json({
         orderId: razorpayOrder.id,
@@ -528,8 +562,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'Payment record not found' });
       }
 
+      const user = getAuthUser(req);
       // Critical authorization check: verify requester is the payer
-      if (payment.payerId !== req.user.id) {
+      if (payment.payerId !== user.id) {
         return res.status(403).json({ message: 'Unauthorized: You can only verify your own payments' });
       }
 
@@ -551,7 +586,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error('Payment signature verification failed', {
           orderId: razorpay_order_id,
           paymentId: razorpay_payment_id,
-          userId: req.user.id,
+          userId: user.id,
           timestamp: new Date().toISOString()
         });
         return res.status(400).json({ message: 'Payment signature verification failed' });
@@ -568,7 +603,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Final security validation
-      if (project.ownerId !== req.user.id) {
+      if (project.ownerId !== user.id) {
         return res.status(403).json({ message: 'Unauthorized: Project ownership mismatch' });
       }
 
@@ -580,7 +615,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const auditEntry = {
           action: 'payment_verified',
-          userId: req.user.id,
+          userId: user.id,
           razorpayPaymentId: razorpay_payment_id,
           verificationMethod: 'frontend',
           details: { orderId: razorpay_order_id }
@@ -604,7 +639,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           storage.updateProject(payment.projectId, { 
             status: 'awarded', 
             awardedBidId: payment.bidId 
-          })
+          } as ProjectUpdate)
         ]);
 
         res.json({ 
@@ -710,7 +745,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             storage.updateProject(payment.projectId, { 
               status: 'awarded', 
               awardedBidId: payment.bidId 
-            })
+            } as ProjectUpdate)
           ]);
 
           console.log('Webhook processed successfully:', {
@@ -756,6 +791,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/payments', requireAuth, async (req, res) => {
     try {
       const { projectId } = req.query;
+      const user = getAuthUser(req);
       
       let payments;
       if (projectId) {
@@ -766,9 +802,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         // Only project owner or suppliers with bids can see project payments
-        if (project.ownerId !== req.user.id) {
+        if (project.ownerId !== user.id) {
           const bids = await storage.getBidsByProject(projectId as string);
-          const userBids = bids.filter(bid => bid.supplierId === req.user.id);
+          const userBids = bids.filter(bid => bid.supplierId === user.id);
           if (userBids.length === 0) {
             return res.status(403).json({ message: 'Unauthorized: No access to this project payments' });
           }
@@ -776,11 +812,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         payments = await storage.getPaymentsForProject(projectId as string);
         // Filter payments based on user role
-        if (project.ownerId !== req.user.id) {
-          payments = payments.filter(p => p.payeeId === req.user.id);
+        if (project.ownerId !== user.id) {
+          payments = payments.filter(p => p.payeeId === user.id);
         }
       } else {
-        payments = await storage.getPaymentsForUser(req.user.id);
+        payments = await storage.getPaymentsForUser(user.id);
       }
       
       // Sanitize payment data
@@ -797,7 +833,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         createdAt: payment.createdAt,
         updatedAt: payment.updatedAt,
         // Only show detailed audit trail to payers
-        ...(payment.payerId === req.user.id && { auditTrail: payment.auditTrail })
+        ...(payment.payerId === user.id && { auditTrail: payment.auditTrail })
       }));
       
       res.json(sanitizedPayments);
@@ -814,8 +850,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'Payment not found' });
       }
 
+      const user = getAuthUser(req);
       // Strict authorization check
-      if (payment.payerId !== req.user.id && payment.payeeId !== req.user.id) {
+      if (payment.payerId !== user.id && payment.payeeId !== user.id) {
         return res.status(403).json({ message: 'Unauthorized: You can only view your own payments' });
       }
 
@@ -833,7 +870,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         createdAt: payment.createdAt,
         updatedAt: payment.updatedAt,
         // Only show audit trail to payer
-        ...(payment.payerId === req.user.id && { auditTrail: payment.auditTrail })
+        ...(payment.payerId === user.id && { auditTrail: payment.auditTrail })
       };
 
       res.json(sanitizedPayment);
@@ -846,13 +883,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Dashboard stats
   app.get('/api/dashboard/stats', requireAuth, async (req, res) => {
     try {
-      const projects = await storage.getProjectsByOwner(req.user.id);
+      const user = getAuthUser(req);
+      const projects = await storage.getProjectsByOwner(user.id);
       const activeProjects = projects.filter(p => p.status === 'open' || p.status === 'awarded').length;
       
       let pendingBids = 0;
       let totalSpend = 0;
       
-      if (req.user.role === 'company' || req.user.role === 'ngo') {
+      if (user.role === 'company' || user.role === 'ngo') {
         // For companies/NGOs, count bids on their projects
         for (const project of projects) {
           const bids = await storage.getBidsByProject(project.id);
@@ -863,9 +901,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             totalSpend += parseFloat(awardedBid.price || '0');
           }
         }
-      } else if (req.user.role === 'supplier') {
+      } else if (user.role === 'supplier') {
         // For suppliers, count their own bids
-        const bids = await storage.getBidsBySupplier(req.user.id);
+        const bids = await storage.getBidsBySupplier(user.id);
         pendingBids = bids.filter(b => b.status === 'pending').length;
       }
 
