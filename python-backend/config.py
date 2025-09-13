@@ -1,7 +1,7 @@
 import os
-from pydantic import BaseSettings
+from typing import List
 
-class Settings(BaseSettings):
+class Settings:
     # Supabase Configuration
     supabase_url: str = ""
     supabase_key: str = ""

@@ -6,6 +6,7 @@ from typing import Optional, List
 import os
 from datetime import datetime
 import uvicorn
+from api.auth import router as auth_router
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -27,6 +28,9 @@ app.add_middleware(
 
 # Security
 security = HTTPBearer()
+
+# Include routers
+app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
 
 # Pydantic models
 class User(BaseModel):
