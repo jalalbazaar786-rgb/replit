@@ -3,10 +3,29 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from typing import Optional, List
+from contextlib import asynccontextmanager
 import os
 from datetime import datetime
 import uvicorn
+from database import create_tables
 from api.auth import router as auth_router
+# Import models after database setup to ensure proper initialization
+import models
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan event handler for application startup and shutdown"""
+    # Startup
+    try:
+        create_tables()
+        print("Database tables created successfully")
+    except Exception as e:
+        print(f"Warning: Could not create database tables: {e}")
+    
+    yield
+    
+    # Shutdown (if needed)
+    print("Application shutting down...")
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -14,7 +33,8 @@ app = FastAPI(
     description="Premium Construction Procurement Platform API",
     version="1.0.0",
     docs_url="/api/docs",
-    redoc_url="/api/redoc"
+    redoc_url="/api/redoc",
+    lifespan=lifespan
 )
 
 # CORS configuration for Next.js frontend
@@ -77,21 +97,7 @@ async def health_check():
         "service": "BuildBidz API"
     }
 
-# Auth routes
-@app.post("/api/auth/register")
-async def register_user(user: UserCreate):
-    # TODO: Integrate with Supabase Auth
-    return {"message": "User registration endpoint - Supabase integration pending"}
-
-@app.post("/api/auth/login")
-async def login_user(email: str, password: str):
-    # TODO: Integrate with Supabase Auth
-    return {"message": "User login endpoint - Supabase integration pending"}
-
-@app.get("/api/auth/me")
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    # TODO: Integrate with Supabase Auth
-    return {"message": "Current user endpoint - Supabase integration pending"}
+# Auth routes are handled by auth_router
 
 # Project routes
 @app.get("/api/projects", response_model=List[Project])

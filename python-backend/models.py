@@ -1,10 +1,12 @@
 from sqlalchemy import Column, String, Float, DateTime, Text, Boolean, ForeignKey, Integer
-from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from enum import Enum
+import uuid
+from database import Base
 
-Base = declarative_base()
+def generate_uuid():
+    return str(uuid.uuid4())
 
 class UserRole(str, Enum):
     COMPANY = "company"
@@ -24,7 +26,7 @@ class ProjectStatus(str, Enum):
 class User(Base):
     __tablename__ = "users"
     
-    id = Column(String, primary_key=True)
+    id = Column(String, primary_key=True, default=generate_uuid)
     username = Column(String, unique=True, nullable=False)
     email = Column(String, unique=True, nullable=False)
     role = Column(String, nullable=False)  # UserRole enum
@@ -45,7 +47,7 @@ class User(Base):
 class Project(Base):
     __tablename__ = "projects"
     
-    id = Column(String, primary_key=True)
+    id = Column(String, primary_key=True, default=generate_uuid)
     title = Column(String, nullable=False)
     description = Column(Text, nullable=False)
     category = Column(String, nullable=False)
@@ -70,7 +72,7 @@ class Project(Base):
 class Bid(Base):
     __tablename__ = "bids"
     
-    id = Column(String, primary_key=True)
+    id = Column(String, primary_key=True, default=generate_uuid)
     project_id = Column(String, ForeignKey("projects.id"), nullable=False)
     supplier_id = Column(String, ForeignKey("users.id"), nullable=False)
     amount = Column(Float, nullable=False)
@@ -89,7 +91,7 @@ class Bid(Base):
 class Message(Base):
     __tablename__ = "messages"
     
-    id = Column(String, primary_key=True)
+    id = Column(String, primary_key=True, default=generate_uuid)
     sender_id = Column(String, ForeignKey("users.id"), nullable=False)
     recipient_id = Column(String, ForeignKey("users.id"), nullable=True)
     project_id = Column(String, ForeignKey("projects.id"), nullable=True)
@@ -106,7 +108,7 @@ class Message(Base):
 class Document(Base):
     __tablename__ = "documents"
     
-    id = Column(String, primary_key=True)
+    id = Column(String, primary_key=True, default=generate_uuid)
     filename = Column(String, nullable=False)
     original_name = Column(String, nullable=False)
     file_size = Column(Integer, nullable=False)
@@ -124,7 +126,7 @@ class Document(Base):
 class Payment(Base):
     __tablename__ = "payments"
     
-    id = Column(String, primary_key=True)
+    id = Column(String, primary_key=True, default=generate_uuid)
     project_id = Column(String, ForeignKey("projects.id"), nullable=False)
     payer_id = Column(String, ForeignKey("users.id"), nullable=False)
     payee_id = Column(String, ForeignKey("users.id"), nullable=False)
