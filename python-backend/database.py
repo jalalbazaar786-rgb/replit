@@ -12,7 +12,7 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
 DATABASE_URL = os.getenv("DATABASE_URL", "")
 
 # Initialize Supabase client
-supabase: Client = None
+supabase: Client | None = None
 if SUPABASE_URL and SUPABASE_KEY:
     try:
         supabase = create_client(SUPABASE_URL, SUPABASE_KEY)

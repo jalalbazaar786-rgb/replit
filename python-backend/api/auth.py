@@ -75,14 +75,16 @@ async def login(login_data: UserLogin, supabase: Client = Depends(get_supabase))
         })
         
         if auth_response.user and auth_response.session:
+            user = auth_response.user
+            session = auth_response.session
             return {
-                "access_token": auth_response.session.access_token,
-                "refresh_token": auth_response.session.refresh_token,
+                "access_token": session.access_token,
+                "refresh_token": session.refresh_token,
                 "user": {
-                    "id": auth_response.user.id,
-                    "email": auth_response.user.email,
-                    "username": auth_response.user.user_metadata.get("username"),
-                    "role": auth_response.user.user_metadata.get("role")
+                    "id": user.id,
+                    "email": user.email,
+                    "username": user.user_metadata.get("username") if user.user_metadata else None,
+                    "role": user.user_metadata.get("role") if user.user_metadata else None
                 }
             }
         else:
@@ -98,9 +100,13 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         # Verify token with Supabase
         user_response = supabase.auth.get_user(credentials.credentials)
         
-        if user_response.user:
+        if not user_response or not user_response.user:
+            raise HTTPException(status_code=401, detail="Invalid token")
+            
+        user = user_response.user
+        if user:
             # Get user profile from database
-            profile_response = supabase.table("users").select("*").eq("id", user_response.user.id).execute()
+            profile_response = supabase.table("users").select("*").eq("id", user.id).execute()
             
             if profile_response.data:
                 return UserResponse(**profile_response.data[0])
