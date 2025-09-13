@@ -1,21 +1,14 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient, getQueryFn } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-
-export interface User {
-  id: string;
-  username: string;
-  email: string;
-  role: string;
-  companyName?: string;
-}
+import { User } from "@shared/schema";
 
 export function useAuth() {
   const { toast } = useToast();
 
-  const { data: user, isLoading, error } = useQuery({
+  const { data: user, isLoading, error } = useQuery<User | null>({
     queryKey: ['/api/auth/me'],
-    queryFn: getQueryFn,
+    queryFn: getQueryFn({ on401: "returnNull" }),
     retry: false, // Don't retry on 401 errors
     retryOnMount: false,
     refetchOnWindowFocus: false,
