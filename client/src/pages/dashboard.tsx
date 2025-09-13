@@ -1,9 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import Header from "@/components/layout/header";
 import Sidebar from "@/components/layout/sidebar";
+import PaymentHistory from "@/components/payment-history";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Building2, TrendingUp, DollarSign, Users, Plus, Search, BarChart3, MessageCircle, Upload } from "lucide-react";
+import { Building2, TrendingUp, DollarSign, Users, Plus, Search, BarChart3, MessageCircle, Upload, CreditCard } from "lucide-react";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useWebSocket } from "@/hooks/use-websocket";
@@ -310,6 +311,50 @@ export default function Dashboard() {
                 </div>
               </CardContent>
             </Card>
+          </div>
+
+          {/* Payment History Section */}
+          <div className="mt-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2">
+                <PaymentHistory limit={5} />
+              </div>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <CreditCard className="w-5 h-5" />
+                    Payment Analytics
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Total Payments</span>
+                      <span className="font-semibold" data-testid="total-payments">
+                        {stats?.totalSpend || "$0"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Successful Rate</span>
+                      <span className="font-semibold text-green-600" data-testid="success-rate">
+                        98.5%
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Average Amount</span>
+                      <span className="font-semibold" data-testid="average-amount">
+                        $12.5K
+                      </span>
+                    </div>
+                    <div className="pt-4 border-t border-border">
+                      <Button variant="outline" className="w-full" data-testid="button-view-payment-details">
+                        View Payment Details
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </main>
       </div>

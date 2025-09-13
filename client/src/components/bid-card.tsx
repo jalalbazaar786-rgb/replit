@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Star, CheckCircle, Clock, Calendar, Award } from "lucide-react";
+import { Star, CheckCircle, Clock, Calendar, Award, CreditCard } from "lucide-react";
+import PaymentModal from "@/components/modals/payment-modal";
 
 interface Bid {
   id: string;
@@ -12,11 +14,23 @@ interface Bid {
   createdAt: string;
 }
 
+interface Project {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  budget: string;
+  location: string;
+  ownerId: string;
+}
+
 interface BidCardProps {
   bid: Bid;
+  project?: Project;
   supplierName?: string;
   canAward?: boolean;
   onAward?: (bidId: string) => void;
+  onPayAndAward?: (bidId: string) => void;
   isAwarding?: boolean;
   index?: number;
 }
@@ -32,12 +46,24 @@ const getStatusColor = (status: string) => {
 
 export default function BidCard({ 
   bid, 
+  project,
   supplierName, 
   canAward = false, 
-  onAward, 
+  onAward,
+  onPayAndAward, 
   isAwarding = false,
   index = 0 
 }: BidCardProps) {
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+
+  const handlePayAndAward = () => {
+    setShowPaymentModal(true);
+  };
+
+  const handlePaymentSuccess = () => {
+    onPayAndAward?.(bid.id);
+  };
+
   return (
     <Card className="relative">
       {bid.status === 'accepted' && (
@@ -113,18 +139,43 @@ export default function BidCard({
           </div>
         </div>
 
-        {canAward && bid.status === 'pending' && onAward && (
-          <Button
-            className="w-full mt-6"
-            onClick={() => onAward(bid.id)}
-            disabled={isAwarding}
-            data-testid={`button-award-${bid.id}`}
-          >
-            {isAwarding ? (
-              <div className="animate-spin w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full mr-2" />
-            ) : null}
-            Award This Bid
-          </Button>
+        {canAward && bid.status === 'pending' && (
+          <div className="space-y-3 mt-6">
+            {/* Pay & Award Button (Primary Action) */}
+            {project && (
+              <Button
+                className="w-full"
+                onClick={handlePayAndAward}
+                disabled={isAwarding}
+                data-testid={`button-pay-award-${bid.id}`}
+              >
+                {isAwarding ? (
+                  <div className="animate-spin w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full mr-2" />
+                ) : (
+                  <CreditCard className="w-4 h-4 mr-2" />
+                )}
+                Pay & Award Bid
+              </Button>
+            )}
+            
+            {/* Traditional Award Button (Secondary Action) */}
+            {onAward && (
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => onAward(bid.id)}
+                disabled={isAwarding}
+                data-testid={`button-award-${bid.id}`}
+              >
+                {isAwarding ? (
+                  <div className="animate-spin w-4 h-4 border-2 border-muted-foreground border-t-transparent rounded-full mr-2" />
+                ) : (
+                  <Award className="w-4 h-4 mr-2" />
+                )}
+                Award Without Payment
+              </Button>
+            )}
+          </div>
         )}
 
         {bid.status === 'accepted' && (
@@ -136,6 +187,18 @@ export default function BidCard({
           </div>
         )}
       </CardContent>
+
+      {/* Payment Modal */}
+      {project && (
+        <PaymentModal
+          bid={bid}
+          project={project}
+          supplierName={supplierName}
+          open={showPaymentModal}
+          onOpenChange={setShowPaymentModal}
+          onPaymentSuccess={handlePaymentSuccess}
+        />
+      )}
     </Card>
   );
 }

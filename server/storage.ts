@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Project, type InsertProject, type Bid, type InsertBid, type Message, type InsertMessage, type Document, type InsertDocument, users, projects, bids, messages, documents } from "@shared/schema";
+import { type User, type InsertUser, type Project, type InsertProject, type Bid, type InsertBid, type Message, type InsertMessage, type Document, type InsertDocument, type Payment, type InsertPayment, users, projects, bids, messages, documents, payments } from "@shared/schema";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { eq, and, desc, or } from "drizzle-orm";
@@ -46,6 +46,15 @@ export interface IStorage {
   getDocumentsByOwner(ownerId: string): Promise<Document[]>;
   createDocument(document: InsertDocument): Promise<Document>;
   deleteDocument(id: string): Promise<void>;
+
+  // Payment operations
+  createPayment(payment: InsertPayment): Promise<Payment>;
+  getPayment(id: string): Promise<Payment | undefined>;
+  getPaymentByRazorpayOrderId(orderId: string): Promise<Payment | undefined>;
+  updatePaymentStatus(id: string, status: string, razorpayPaymentId?: string, auditEntry?: any): Promise<Payment | undefined>;
+  markWebhookProcessed(id: string): Promise<Payment | undefined>;
+  getPaymentsForProject(projectId: string): Promise<Payment[]>;
+  getPaymentsForUser(userId: string): Promise<Payment[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -184,6 +193,60 @@ export class DatabaseStorage implements IStorage {
 
   async deleteDocument(id: string): Promise<void> {
     await db.delete(documents).where(eq(documents.id, id));
+  }
+
+  async createPayment(insertPayment: InsertPayment): Promise<Payment> {
+    const result = await db.insert(payments).values(insertPayment).returning();
+    return result[0];
+  }
+
+  async getPayment(id: string): Promise<Payment | undefined> {
+    const result = await db.select().from(payments).where(eq(payments.id, id)).limit(1);
+    return result[0];
+  }
+
+  async getPaymentByRazorpayOrderId(orderId: string): Promise<Payment | undefined> {
+    const result = await db.select().from(payments).where(eq(payments.razorpayOrderId, orderId)).limit(1);
+    return result[0];
+  }
+
+  async updatePaymentStatus(id: string, status: string, razorpayPaymentId?: string, auditEntry?: any): Promise<Payment | undefined> {
+    const updateData: any = { status, updatedAt: new Date() };
+    if (razorpayPaymentId) {
+      updateData.razorpayPaymentId = razorpayPaymentId;
+    }
+    if (auditEntry) {
+      // Get current payment to append audit entry
+      const currentPayment = await this.getPayment(id);
+      if (currentPayment) {
+        const currentAudit = Array.isArray(currentPayment.auditTrail) ? currentPayment.auditTrail : [];
+        updateData.auditTrail = [...currentAudit, { ...auditEntry, timestamp: new Date().toISOString() }];
+      }
+    }
+    
+    const result = await db.update(payments)
+      .set(updateData)
+      .where(eq(payments.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async markWebhookProcessed(id: string): Promise<Payment | undefined> {
+    const result = await db.update(payments)
+      .set({ webhookProcessed: true, updatedAt: new Date() })
+      .where(eq(payments.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async getPaymentsForProject(projectId: string): Promise<Payment[]> {
+    return await db.select().from(payments).where(eq(payments.projectId, projectId)).orderBy(desc(payments.createdAt));
+  }
+
+  async getPaymentsForUser(userId: string): Promise<Payment[]> {
+    return await db.select().from(payments)
+      .where(or(eq(payments.payerId, userId), eq(payments.payeeId, userId)))
+      .orderBy(desc(payments.createdAt));
   }
 }
 

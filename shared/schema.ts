@@ -70,6 +70,24 @@ export const documents = pgTable("documents", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const payments = pgTable("payments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  razorpayOrderId: text("razorpay_order_id").notNull().unique(),
+  razorpayPaymentId: text("razorpay_payment_id"),
+  projectId: varchar("project_id").notNull().references(() => projects.id),
+  bidId: varchar("bid_id").notNull().references(() => bids.id),
+  payerId: varchar("payer_id").notNull().references(() => users.id),
+  payeeId: varchar("payee_id").notNull().references(() => users.id),
+  amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+  currency: text("currency").notNull().default("INR"),
+  status: text("status").default("created"), // 'created', 'paid', 'failed', 'refunded'
+  type: text("type").notNull(), // 'escrow', 'direct', 'partial'
+  webhookProcessed: boolean("webhook_processed").default(false),
+  auditTrail: jsonb("audit_trail").default('[]'),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
@@ -99,6 +117,44 @@ export const insertDocumentSchema = createInsertSchema(documents).omit({
   createdAt: true,
 });
 
+export const insertPaymentSchema = createInsertSchema(payments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  webhookProcessed: true,
+  auditTrail: true,
+});
+
+// Payment validation schemas
+export const createPaymentOrderSchema = z.object({
+  bidId: z.string().uuid('Invalid bid ID format'),
+  projectId: z.string().uuid('Invalid project ID format'),
+  amount: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Amount must be a valid decimal with max 2 decimal places'),
+  type: z.enum(['escrow', 'direct', 'partial']).default('escrow'),
+  currency: z.enum(['INR']).default('INR'),
+});
+
+export const verifyPaymentSchema = z.object({
+  razorpay_order_id: z.string().min(1, 'Order ID is required'),
+  razorpay_payment_id: z.string().min(1, 'Payment ID is required'),
+  razorpay_signature: z.string().min(1, 'Signature is required'),
+});
+
+export const webhookEventSchema = z.object({
+  event: z.string().min(1, 'Event type is required'),
+  payload: z.object({
+    payment: z.object({
+      entity: z.object({
+        id: z.string(),
+        order_id: z.string(),
+        status: z.string(),
+        amount: z.number(),
+        currency: z.string(),
+      }),
+    }),
+  }),
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertProject = z.infer<typeof insertProjectSchema>;
@@ -109,3 +165,5 @@ export type InsertMessage = z.infer<typeof insertMessageSchema>;
 export type Message = typeof messages.$inferSelect;
 export type InsertDocument = z.infer<typeof insertDocumentSchema>;
 export type Document = typeof documents.$inferSelect;
+export type InsertPayment = z.infer<typeof insertPaymentSchema>;
+export type Payment = typeof payments.$inferSelect;

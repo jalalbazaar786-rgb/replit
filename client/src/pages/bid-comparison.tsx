@@ -2,10 +2,10 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useRoute } from "wouter";
 import Header from "@/components/layout/header";
 import Sidebar from "@/components/layout/sidebar";
+import BidCard from "@/components/bid-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Star, CheckCircle, Clock, DollarSign, Calendar, Award } from "lucide-react";
+import { DollarSign, Calendar, Award } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
@@ -57,6 +57,12 @@ export default function BidComparison() {
       });
     },
   });
+
+  const handlePayAndAward = (bidId: string) => {
+    // The payment modal in BidCard will handle the payment flow
+    // and automatically award the bid upon successful payment
+    console.log('Payment and award flow initiated for bid:', bidId);
+  };
 
   const canAwardBids = user?.role === 'company' || user?.role === 'ngo';
 
@@ -157,101 +163,17 @@ export default function BidComparison() {
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
               {bids.map((bid, index) => (
-                <Card key={bid.id} className="relative">
-                  {bid.status === 'accepted' && (
-                    <div className="absolute -top-2 -right-2 bg-green-500 text-white p-2 rounded-full">
-                      <Award className="w-4 h-4" />
-                    </div>
-                  )}
-                  
-                  <CardHeader>
-                    <div className="text-center">
-                      <CardTitle className="text-lg" data-testid={`bid-supplier-${bid.id}`}>
-                        Supplier #{index + 1}
-                      </CardTitle>
-                      <div className="mt-2">
-                        <span className="text-2xl font-bold text-primary" data-testid={`bid-price-${bid.id}`}>
-                          ${parseFloat(bid.price).toLocaleString()}
-                        </span>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div>
-                        <h4 className="font-medium text-foreground mb-2">Timeline</h4>
-                        <div className="flex items-center text-sm text-muted-foreground">
-                          <Clock className="w-4 h-4 mr-2" />
-                          <span data-testid={`bid-delivery-${bid.id}`}>{bid.deliveryTime} days delivery</span>
-                        </div>
-                      </div>
-
-                      <div>
-                        <h4 className="font-medium text-foreground mb-2">Proposal</h4>
-                        <p className="text-sm text-muted-foreground line-clamp-3" data-testid={`bid-proposal-${bid.id}`}>
-                          {bid.proposal}
-                        </p>
-                      </div>
-
-                      <div>
-                        <h4 className="font-medium text-foreground mb-2">Submitted</h4>
-                        <div className="flex items-center text-sm text-muted-foreground">
-                          <Calendar className="w-4 h-4 mr-2" />
-                          <span>{new Date(bid.createdAt).toLocaleDateString()}</span>
-                        </div>
-                      </div>
-
-                      {/* Sample company info - in real app this would come from supplier profile */}
-                      <div>
-                        <h4 className="font-medium text-foreground mb-2">Company Info</h4>
-                        <div className="space-y-1">
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Rating:</span>
-                            <div className="flex items-center">
-                              <span className="text-foreground">4.{7 + index}</span>
-                              <Star className="w-4 h-4 text-yellow-400 ml-1 fill-current" />
-                            </div>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Projects:</span>
-                            <span className="text-foreground">{150 + index * 50}+</span>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Insurance:</span>
-                            <span className="text-green-600 flex items-center">
-                              <CheckCircle className="w-3 h-3 mr-1" />
-                              Verified
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {canAwardBids && project.status === 'open' && bid.status === 'pending' && (
-                      <Button
-                        className="w-full mt-6"
-                        onClick={() => awardBidMutation.mutate(bid.id)}
-                        disabled={awardBidMutation.isPending}
-                        data-testid={`button-award-${bid.id}`}
-                      >
-                        {awardBidMutation.isPending ? (
-                          <div className="animate-spin w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full mr-2" />
-                        ) : null}
-                        Award This Bid
-                      </Button>
-                    )}
-
-                    {bid.status === 'accepted' && (
-                      <div className="w-full mt-6 p-3 bg-green-50 border border-green-200 rounded-md">
-                        <div className="flex items-center text-green-800">
-                          <Award className="w-4 h-4 mr-2" />
-                          <span className="text-sm font-medium">Awarded Bid</span>
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                <BidCard
+                  key={bid.id}
+                  bid={bid}
+                  project={project}
+                  supplierName={`Supplier #${index + 1}`}
+                  canAward={canAwardBids && project.status === 'open'}
+                  onAward={(bidId) => awardBidMutation.mutate(bidId)}
+                  onPayAndAward={handlePayAndAward}
+                  isAwarding={awardBidMutation.isPending}
+                  index={index}
+                />
               ))}
             </div>
           )}
